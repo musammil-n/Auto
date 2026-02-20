@@ -55,8 +55,12 @@
             "required": false
         },
         "DATABASE_URI": {
-            "description": "mongoDB URI. Get this value from https://www.mongodb.com.",
-            "required": true
+            "description": "mongoDB URI. Required when SQLDB is not set.",
+            "required": false
+        },
+        "SQLDB": {
+            "description": "SQLite/Turso-compatible DB string (example: sqlite:///data/bot.db). When set, bot uses SQL DB for users/connections/filters.",
+            "required": false
         },
         "DATABASE_NAME": {
             "description": "Name of the database in mongoDB.",

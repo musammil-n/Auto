@@ -72,8 +72,9 @@
 - `API_HASH`: Also from [Telegram Apps](https://my.telegram.org/apps).  
 - `CHANNELS`: Telegram channel/group usernames or IDs (space-separated).  
 - `ADMINS`: Admin usernames or IDs (space-separated).  
-- `DATABASE_URI`: MongoDB URI ([Learn More](https://youtu.be/1G1XwEOnxxo)).  
-- `DATABASE_NAME`: MongoDB database name ([Learn More](https://youtu.be/Miajl2amrKo)).  
+- `DATABASE_URI`: MongoDB URI (required only when `SQLDB` is not set).  
+- `DATABASE_NAME`: MongoDB database name.  
+- `SQLDB`: SQL database path/URL (for example `sqlite:///data/bot.db`) to use SQL backend for users/connections/filters.  
 - `LOG_CHANNEL`: Telegram channel for activity logs.  
 
 ### Optional
