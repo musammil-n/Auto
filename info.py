@@ -44,7 +44,9 @@ AUTH_GROUPS = [int(ch) for ch in auth_grp.split()] if auth_grp else None
 DATABASE_URI = environ.get('DATABASE_URI', "")
 DATABASE_NAME = environ.get('DATABASE_NAME', "Cluster0")
 COLLECTION_NAME = environ.get('COLLECTION_NAME', 'mn_files')
-SQLDB = environ.get('SQLDB', "")
+SQLDB = environ.get('SQLDB', environ.get('TURSO_DATABASE_URL', ""))
+TURSO_DATABASE_URL = environ.get('TURSO_DATABASE_URL', SQLDB)
+TURSO_AUTH_TOKEN = environ.get('TURSO_AUTH_TOKEN', "")
 
 # File Channel Settings
 FILE_CHANNELS = [int(ch) for ch in environ.get('FILE_CHANNELS', '-1002831639976 -1002607076908 -1002869981026').split()]

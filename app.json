@@ -62,6 +62,14 @@
             "description": "SQLite/Turso-compatible DB string (example: sqlite:///data/bot.db). When set, bot uses SQL DB for users/connections/filters.",
             "required": false
         },
+        "TURSO_DATABASE_URL": {
+            "description": "Optional alias for SQLDB. Example: libsql://your-db.turso.io",
+            "required": false
+        },
+        "TURSO_AUTH_TOKEN": {
+            "description": "Turso auth token. Add this in Koyeb environment variables.",
+            "required": false
+        },
         "DATABASE_NAME": {
             "description": "Name of the database in mongoDB.",
             "required": false

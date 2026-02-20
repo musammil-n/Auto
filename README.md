@@ -75,6 +75,8 @@
 - `DATABASE_URI`: MongoDB URI (required only when `SQLDB` is not set).  
 - `DATABASE_NAME`: MongoDB database name.  
 - `SQLDB`: SQL database path/URL (for example `sqlite:///data/bot.db`) to use SQL backend for users/connections/filters.  
+- `TURSO_DATABASE_URL`: Optional alias for `SQLDB` (example: `libsql://your-db.turso.io`).  
+- `TURSO_AUTH_TOKEN`: Turso token (add this in Koyeb **Environment Variables**).  
 - `LOG_CHANNEL`: Telegram channel for activity logs.  
 
 ### Optional
@@ -94,6 +96,61 @@
 </a>
 </p>
 </details>
+
+### Full Tutorial: Deploy on Koyeb with Turso
+
+> **Where do I add Turso token?**  
+> Add it in **Koyeb → Service → Settings → Environment variables** as:  
+> `TURSO_AUTH_TOKEN=your_turso_token`
+
+1. **Create Turso database**
+   - Install and login to Turso CLI.
+   - Create a DB:
+     ```bash
+     turso db create shobana-bot
+     ```
+   - Get DB URL:
+     ```bash
+     turso db show shobana-bot --url
+     ```
+   - Create token:
+     ```bash
+     turso db tokens create shobana-bot
+     ```
+
+2. **Fork this repository**
+   - Fork this repo to your GitHub account.
+   - Keep your branch updated.
+
+3. **Create service in Koyeb**
+   - Go to Koyeb → **Create Web Service** (or Worker, based on your setup).
+   - Select your forked GitHub repository.
+   - Branch: `main`.
+   - Runtime: Python (from `heroku/python` buildpack in this repo).
+
+4. **Set Koyeb environment variables**
+   - Required Telegram vars:
+     - `BOT_TOKEN`
+     - `API_ID`
+     - `API_HASH`
+     - `ADMINS`
+     - `CHANNELS`
+     - `LOG_CHANNEL`
+   - Database vars for Turso:
+     - `SQLDB=libsql://<your-db-name>.turso.io`
+       - or use `TURSO_DATABASE_URL=libsql://<your-db-name>.turso.io`
+     - `TURSO_AUTH_TOKEN=<your-generated-token>`
+   - Keep Mongo vars optional if you are using SQL mode.
+
+5. **Deploy**
+   - Click **Deploy** in Koyeb.
+   - Wait for build + start logs.
+   - Open Telegram and run `/start` to verify bot is live.
+
+6. **Troubleshooting**
+   - If DB auth fails, regenerate token and re-add `TURSO_AUTH_TOKEN`.
+   - Ensure `SQLDB`/`TURSO_DATABASE_URL` has correct `libsql://` host.
+   - Make sure bot is admin in channels configured in `CHANNELS`.
 
 ### Deploy to VPS
 <details>
