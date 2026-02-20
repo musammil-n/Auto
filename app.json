@@ -59,7 +59,7 @@
             "required": false
         },
         "SQLDB": {
-            "description": "SQLite/Turso-compatible DB string (example: sqlite:///data/bot.db). When set, bot uses SQL DB for users/connections/filters.",
+            "description": "SQLite DB string (example: sqlite:///data/bot.db). SQL backend currently uses sqlite engine for users/connections/filters.",
             "required": false
         },
         "TURSO_DATABASE_URL": {

@@ -74,9 +74,9 @@
 - `ADMINS`: Admin usernames or IDs (space-separated).  
 - `DATABASE_URI`: MongoDB URI (required only when `SQLDB` is not set).  
 - `DATABASE_NAME`: MongoDB database name.  
-- `SQLDB`: SQL database path/URL (for example `sqlite:///data/bot.db`) to use SQL backend for users/connections/filters.  
-- `TURSO_DATABASE_URL`: Optional alias for `SQLDB` (example: `libsql://your-db.turso.io`).  
-- `TURSO_AUTH_TOKEN`: Turso token (add this in Koyeb **Environment Variables**).  
+- `SQLDB`: SQL database path (for example `sqlite:///data/bot.db`) to use SQL backend for users/connections/filters.  
+- `TURSO_DATABASE_URL`: Alias variable for `SQLDB`.  
+- `TURSO_AUTH_TOKEN`: Turso token variable (kept for Turso-ready setups).  
 - `LOG_CHANNEL`: Telegram channel for activity logs.  
 
 ### Optional
@@ -97,11 +97,16 @@
 </p>
 </details>
 
-### Full Tutorial: Deploy on Koyeb with Turso
+### Full Tutorial: Deploy on Koyeb (SQL mode + Turso notes)
 
 > **Where do I add Turso token?**  
 > Add it in **Koyeb → Service → Settings → Environment variables** as:  
 > `TURSO_AUTH_TOKEN=your_turso_token`
+
+> **Important note**  
+> Current SQL backend in this repository runs on SQLite engine (`sqlite:///...`).  
+> If you set a direct Turso `libsql://` URL, startup now fails early with a clear error message instead of crashing later.  
+> For stable deployment, use `SQLDB=sqlite:///data/bot.db` on Koyeb.
 
 1. **Create Turso database**
    - Install and login to Turso CLI.
