@@ -13,22 +13,35 @@ def _is_remote_libsql(db_url: str) -> bool:
     return db_url.startswith("libsql://") or db_url.startswith("ws://") or db_url.startswith("wss://")
 
 
+def _require_libsql_client() -> None:
+    try:
+        import libsql_client  # noqa: F401
+    except Exception as e:
+        raise RuntimeError(
+            "Turso/libsql URL detected, but dependency 'libsql-client' is not installed. "
+            "Please ensure requirements are installed (pip install -r requirements.txt)."
+        ) from e
+
+
 def _validate_remote_libsql(db_url: str) -> None:
     if not _is_remote_libsql(db_url):
         return
 
-    # We currently use sqlite engine for SQL mode in this codebase.
-    # A raw libsql:// URL is not a local sqlite file and would fail with unclear sqlite errors,
-    # so we fail early with a precise actionable message.
     if not TURSO_AUTH_TOKEN:
         raise RuntimeError(
             "Turso URL detected in SQLDB/TURSO_DATABASE_URL but TURSO_AUTH_TOKEN is missing. "
             "Add TURSO_AUTH_TOKEN in your environment variables."
         )
 
+    _require_libsql_client()
+
+    # NOTE:
+    # Current DB modules are implemented with sqlite-style SQL execution.
+    # Remote Turso/libsql needs a dedicated query adapter layer.
+    # We keep this explicit failure to avoid silent misbehavior.
     raise RuntimeError(
-        "Remote Turso URL detected (libsql://...). This bot's SQL backend currently expects a sqlite file path. "
-        "Use a sqlite path like 'sqlite:///data/bot.db' for now, or extend database/sqldb.py to use libsql-client."
+        "Remote Turso URL detected and libsql-client is installed, but this code path still uses sqlite-style execution. "
+        "Please use SQLDB=sqlite:///data/bot.db for now, or add a libsql query adapter in database modules."
     )
 
 
