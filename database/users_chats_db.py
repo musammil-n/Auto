@@ -1,5 +1,7 @@
 # https://github.com/odysseusmax/animated-lamp/blob/master/bot/database/database.py
 import json
+import shutil
+from pathlib import Path
 import motor.motor_asyncio
 
 from info import (
@@ -12,8 +14,20 @@ from info import (
     PROTECT_CONTENT,
     SINGLE_BUTTON,
     SPELL_CHECK_REPLY,
+    TURSO_MAX_DB_BYTES,
 )
-from database.sqldb import db_execute, db_fetchall, db_fetchone, get_conn, libsql_mode, sqldb_enabled
+from database.sqldb import (
+    db_execute,
+    db_fetchall,
+    db_fetchone,
+    get_conn,
+    get_fallback_db_path,
+    get_fallback_db_size,
+    get_sqldb_path,
+    libsql_fallback_active,
+    libsql_mode,
+    sqldb_enabled,
+)
 
 USE_SQLDB = sqldb_enabled()
 USE_LIBSQL = libsql_mode()
@@ -220,15 +234,36 @@ class Database:
         except Exception:
             return []
 
+    async def get_db_backend(self):
+        if not self.use_sql:
+            return "MongoDB"
+        if self.use_libsql:
+            return "SQLite Fallback (Turso unreachable)" if libsql_fallback_active() else "Turso libsql"
+        return "SQLite"
+
     async def get_db_size(self):
         if not self.use_sql:
             return (await self.db.command('dbstats'))['dataSize']
         if self.use_libsql:
-            return 0
+            # When Turso is unreachable and fallback sqlite is active,
+            # report the fallback sqlite usage so /stats remains useful.
+            try:
+                return get_fallback_db_size()
+            except Exception:
+                return None
         with get_conn() as conn:
             page_count = conn.execute("PRAGMA page_count").fetchone()[0]
             page_size = conn.execute("PRAGMA page_size").fetchone()[0]
             return int(page_count) * int(page_size)
+
+    async def get_db_limit(self):
+        if self.use_libsql and not libsql_fallback_active():
+            return int(TURSO_MAX_DB_BYTES)
+
+        sqlite_path = Path(get_fallback_db_path() if self.use_libsql else (get_sqldb_path() or "bot.db"))
+        base_path = sqlite_path if sqlite_path.exists() else sqlite_path.parent
+        usage = shutil.disk_usage(str(base_path))
+        return int(usage.total)
 
 
 db = Database(DATABASE_URI, DATABASE_NAME)

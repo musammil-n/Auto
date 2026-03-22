@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import sqlite3
+import time
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -11,6 +12,34 @@ logger = logging.getLogger(__name__)
 _LIBSQL_CLIENT = None
 _LIBSQL_LOCK = asyncio.Lock()
 _FALLBACK_SQLITE = "data/turso_fallback.db"
+_LAST_LIBSQL_WARNING = {"query": 0.0, "fetch": 0.0}
+_WARNING_INTERVAL = 60.0
+_LIBSQL_DISABLED_UNTIL = 0.0
+_LIBSQL_COOLDOWN_SECONDS = 300.0
+
+
+def _libsql_temporarily_disabled() -> bool:
+    return time.monotonic() < _LIBSQL_DISABLED_UNTIL
+
+
+def _disable_libsql_temporarily(error: Exception) -> None:
+    global _LIBSQL_DISABLED_UNTIL
+    _LIBSQL_DISABLED_UNTIL = time.monotonic() + _LIBSQL_COOLDOWN_SECONDS
+    logger.warning(
+        "libsql temporarily disabled for %.0fs after connection/query failure; using local fallback sqlite. error=%s",
+        _LIBSQL_COOLDOWN_SECONDS,
+        error,
+    )
+
+
+def _log_libsql_fallback(kind: str, error: Exception) -> None:
+    now = time.monotonic()
+    last = _LAST_LIBSQL_WARNING.get(kind, 0.0)
+    if now - last >= _WARNING_INTERVAL:
+        _LAST_LIBSQL_WARNING[kind] = now
+        logger.warning(f"libsql {kind} failed, using local fallback sqlite. error={error}")
+    else:
+        logger.debug(f"libsql {kind} failed again, still using fallback sqlite. error={error}")
 
 
 def _fallback_conn() -> sqlite3.Connection:
@@ -22,6 +51,19 @@ def _fallback_conn() -> sqlite3.Connection:
     return conn
 
 
+
+
+def get_fallback_db_path() -> str:
+    return _FALLBACK_SQLITE
+
+
+def get_fallback_db_size() -> int:
+    with _fallback_conn() as conn:
+        page_count = conn.execute("PRAGMA page_count").fetchone()[0]
+        page_size = conn.execute("PRAGMA page_size").fetchone()[0]
+        return int(page_count) * int(page_size)
+
+
 def sqldb_enabled() -> bool:
     return bool(SQLDB)
 
@@ -29,6 +71,10 @@ def sqldb_enabled() -> bool:
 def libsql_mode() -> bool:
     db_url = (SQLDB or "").strip()
     return db_url.startswith("libsql://") or db_url.startswith("ws://") or db_url.startswith("wss://")
+
+
+def libsql_fallback_active() -> bool:
+    return libsql_mode() and _libsql_temporarily_disabled()
 
 
 def _require_libsql_client_module():
@@ -79,10 +125,18 @@ async def _libsql_execute(query: str, params=()):
 
 async def db_execute(query: str, params=()):
     if libsql_mode():
+        if _libsql_temporarily_disabled():
+            with _fallback_conn() as conn:
+                cur = conn.execute(query, tuple(params or ()))
+                conn.commit()
+                return cur
         try:
             return await _libsql_execute(query, params)
         except Exception as e:
-            logger.warning(f"libsql query failed, using local fallback sqlite. error={e}")
+            if "Cannot connect to host" in str(e) or "Name or service not known" in str(e):
+                _disable_libsql_temporarily(e)
+            else:
+                _log_libsql_fallback("query", e)
             with _fallback_conn() as conn:
                 cur = conn.execute(query, tuple(params or ()))
                 conn.commit()
@@ -96,6 +150,15 @@ async def db_execute(query: str, params=()):
 
 async def db_fetchall(query: str, params=()):
     if libsql_mode():
+        if _libsql_temporarily_disabled():
+            with _fallback_conn() as conn:
+                try:
+                    cur = conn.execute(query, tuple(params or ()))
+                    return [dict(r) for r in cur.fetchall()]
+                except sqlite3.OperationalError as oe:
+                    if "no such table" in str(oe).lower() and query.strip().lower().startswith("select"):
+                        return []
+                    raise
         try:
             result = await _libsql_execute(query, params)
             rows = getattr(result, "rows", []) or []
@@ -107,7 +170,10 @@ async def db_fetchall(query: str, params=()):
                     normalized.append(dict(row)) if hasattr(row, "keys") else normalized.append({str(i): v for i, v in enumerate(row)})
             return normalized
         except Exception as e:
-            logger.warning(f"libsql fetch failed, using local fallback sqlite. error={e}")
+            if "Cannot connect to host" in str(e) or "Name or service not known" in str(e):
+                _disable_libsql_temporarily(e)
+            else:
+                _log_libsql_fallback("fetch", e)
             with _fallback_conn() as conn:
                 try:
                     cur = conn.execute(query, tuple(params or ()))
